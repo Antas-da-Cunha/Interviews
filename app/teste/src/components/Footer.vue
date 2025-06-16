@@ -12,7 +12,7 @@
         <div class="footer-info">
           <div class="developer-info">
             <h3>Developer</h3>
-            <p class="developer-name">Claudio Martins</p>
+            <p class="developer-name">Claudio Martins & Joaquim Hilling & TRALARELO TRALALA</p>
           </div>
           <div class="contact-info">
             <h3>Contact</h3>
