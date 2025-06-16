@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\cmartins\\Documents\\GitHub\\teste\\api\\DatabaseAccess\\DatabaseAccess.csproj": {}
+    "C:\\Users\\ads\\Git\\Interviews\\api\\DatabaseAccess\\DatabaseAccess.csproj": {}
   },
   "projects": {
-    "C:\\Users\\cmartins\\Documents\\GitHub\\teste\\api\\DatabaseAccess\\DatabaseAccess.csproj": {
+    "C:\\Users\\ads\\Git\\Interviews\\api\\DatabaseAccess\\DatabaseAccess.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\cmartins\\Documents\\GitHub\\teste\\api\\DatabaseAccess\\DatabaseAccess.csproj",
+        "projectUniqueName": "C:\\Users\\ads\\Git\\Interviews\\api\\DatabaseAccess\\DatabaseAccess.csproj",
         "projectName": "DatabaseAccess",
-        "projectPath": "C:\\Users\\cmartins\\Documents\\GitHub\\teste\\api\\DatabaseAccess\\DatabaseAccess.csproj",
-        "packagesPath": "C:\\Users\\cmartins\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\cmartins\\Documents\\GitHub\\teste\\api\\DatabaseAccess\\obj\\",
+        "projectPath": "C:\\Users\\ads\\Git\\Interviews\\api\\DatabaseAccess\\DatabaseAccess.csproj",
+        "packagesPath": "C:\\Users\\ads\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ads\\Git\\Interviews\\api\\DatabaseAccess\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\cmartins\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\ads\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
