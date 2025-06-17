@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddControllers(); // Enable MVC controllers
 
 // Adicionar o Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -35,6 +36,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapControllers(); // Map attribute-routed controllers
 
 // Simple API endpoints without Swagger
 app.MapGet("/", () => "API running successfully. Use /api/advogados to test database connection.")
