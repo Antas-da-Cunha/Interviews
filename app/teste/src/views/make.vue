@@ -1054,6 +1054,7 @@ h4 {
   display: flex;
   justify-content: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .stat-card {
@@ -1061,6 +1062,8 @@ h4 {
   border-radius: 8px;
   padding: 0.75rem 1rem;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  min-width: 120px;
+  text-align: center;
 }
 
 .stat-label {
@@ -1068,11 +1071,13 @@ h4 {
   font-weight: 500;
   color: #7f8c8d;
   margin-bottom: 0.25rem;
+  font-size: 0.85rem;
 }
 
 .stat-value {
   font-weight: bold;
   color: #2c3e50;
+  font-size: 1.1rem;
 }
 
 .evolution-chart {
@@ -1234,6 +1239,7 @@ h4 {
   text-align: center;
 }
 
+/* Responsividade para mobile */
 @media (max-width: 768px) {
   .advogados-container {
     padding: 1rem;
@@ -1287,19 +1293,29 @@ h4 {
   
   .advogado-header {
     flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .advogado-info {
+    flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
   }
   
-  .month-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
+  .expand-btn {
+    align-self: stretch;
+    justify-content: center;
   }
   
-  .casos-list {
+  .summary-stats {
     flex-direction: column;
-    gap: 0.3rem;
+    align-items: center;
+  }
+  
+  .stat-card {
+    width: 100%;
+    max-width: 200px;
   }
   
   .advogados-table {
