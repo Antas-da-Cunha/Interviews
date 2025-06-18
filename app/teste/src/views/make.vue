@@ -20,6 +20,7 @@ interface Advogado {
   cidade: string
   aniversario: string
   totalHoras?: string
+  evolucaoMensal?: EvolucaoMensal[]
 }
 
 interface TopAdvogado {
@@ -28,6 +29,14 @@ interface TopAdvogado {
   sobrenome: string
   departamento: string
   totalMinutos: number
+}
+
+interface EvolucaoMensal {
+  mes: string
+  ano: number
+  totalMinutos: number
+  totalHoras: string
+  casos: string[]
 }
 
 const advogados = ref<Advogado[]>([])
@@ -58,11 +67,16 @@ const fetchAdvogados = async () => {
           const horas: Hora[] = await horasResponse.json()
           const totalMinutos = horas.reduce((sum, hora) => sum + (hora.minutos_Registados || 0), 0)
           advogado.totalHoras = formatHoras(totalMinutos)
+          
+          // Calcular evolução mensal
+          advogado.evolucaoMensal = calcularEvolucaoMensal(horas)
         } else {
           advogado.totalHoras = '0h 0min'
+          advogado.evolucaoMensal = []
         }
       } catch (err) {
         advogado.totalHoras = '0h 0min'
+        advogado.evolucaoMensal = []
         console.error(`Erro ao buscar horas do advogado ${advogado.id}:`, err)
       }
     }))
@@ -73,6 +87,57 @@ const fetchAdvogados = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const calcularEvolucaoMensal = (horas: Hora[]): EvolucaoMensal[] => {
+  const evolucaoPorMes = new Map<string, { minutos: number; casos: Set<string> }>()
+  
+  horas.forEach(hora => {
+    const data = new Date(hora.data)
+    const mesAno = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`
+    
+    if (!evolucaoPorMes.has(mesAno)) {
+      evolucaoPorMes.set(mesAno, { minutos: 0, casos: new Set() })
+    }
+    
+    const mes = evolucaoPorMes.get(mesAno)!
+    mes.minutos += hora.minutos_Registados || 0
+    if (hora.caso) {
+      mes.casos.add(hora.caso.trim())
+    }
+  })
+  
+  return Array.from(evolucaoPorMes.entries())
+    .map(([mesAno, dados]) => {
+      const [ano, mes] = mesAno.split('-')
+      return {
+        mes: getNomeMes(parseInt(mes)),
+        ano: parseInt(ano),
+        totalMinutos: dados.minutos,
+        totalHoras: formatHoras(dados.minutos),
+        casos: Array.from(dados.casos)
+      }
+    })
+    .sort((a, b) => {
+      if (a.ano !== b.ano) return a.ano - b.ano
+      return getNumeroMes(a.mes) - getNumeroMes(b.mes)
+    })
+}
+
+const getNomeMes = (numero: number): string => {
+  const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  return meses[numero - 1] || 'Desconhecido'
+}
+
+const getNumeroMes = (nome: string): number => {
+  const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  return meses.indexOf(nome) + 1
 }
 
 const fetchTopAdvogados = async () => {
@@ -200,6 +265,79 @@ onMounted(() => {
       </div>
     </div>
     
+    <!-- Evolução Mensal -->
+    <div class="evolution-section">
+      <h2>📈 Evolução Mensal das Horas por Advogado</h2>
+      
+      <div v-if="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Carregando evolução mensal...</p>
+      </div>
+      
+      <div v-else-if="error" class="error">
+        <p>Erro: {{ error }}</p>
+        <button @click="fetchAdvogados" class="retry-btn">Tentar novamente</button>
+      </div>
+      
+      <div v-else class="evolution-container">
+        <div 
+          v-for="advogado in advogados" 
+          :key="`evolution-${advogado.id}`" 
+          class="advogado-evolution"
+        >
+          <div class="advogado-header">
+            <h3>{{ advogado.nome }} {{ advogado.sobrenome }}</h3>
+            <span class="department-badge">{{ advogado.departamento }}</span>
+          </div>
+          
+          <div v-if="!advogado.evolucaoMensal || advogado.evolucaoMensal.length === 0" class="no-evolution">
+            <p>Nenhuma evolução mensal disponível.</p>
+          </div>
+          
+          <div v-else class="evolution-chart">
+            <div class="chart-container">
+              <div 
+                v-for="(mes, index) in advogado.evolucaoMensal" 
+                :key="`${advogado.id}-${mes.mes}-${mes.ano}`"
+                class="month-bar"
+              >
+                <div class="bar-container">
+                  <div 
+                    class="bar" 
+                    :style="{ height: `${Math.min((mes.totalMinutos / 600) * 100, 100)}%` }"
+                    :title="`${mes.mes} ${mes.ano}: ${mes.totalHoras}`"
+                  ></div>
+                </div>
+                <div class="month-label">{{ mes.mes }}</div>
+                <div class="month-hours">{{ mes.totalHoras }}</div>
+              </div>
+            </div>
+            
+            <div class="evolution-details">
+              <h4>Detalhes por Mês:</h4>
+              <div class="month-details">
+                <div 
+                  v-for="mes in advogado.evolucaoMensal" 
+                  :key="`details-${advogado.id}-${mes.mes}-${mes.ano}`"
+                  class="month-detail"
+                >
+                  <div class="month-header">
+                    <span class="month-name">{{ mes.mes }} {{ mes.ano }}</span>
+                    <span class="month-total">{{ mes.totalHoras }}</span>
+                  </div>
+                  <div class="casos-list">
+                    <span class="casos-label">Casos:</span>
+                    <span v-if="mes.casos.length === 0" class="no-casos">Nenhum caso registrado</span>
+                    <span v-else class="casos">{{ mes.casos.join(', ') }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
     <!-- Tabela de Todos os Advogados -->
     <div class="table-section">
       <h2>📋 Lista Completa de Advogados</h2>
@@ -278,7 +416,21 @@ h3 {
   font-size: 1.3rem;
 }
 
+h4 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
 .podium-section {
+  margin-bottom: 3rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+.evolution-section {
   margin-bottom: 3rem;
   background-color: white;
   border-radius: 12px;
@@ -478,6 +630,174 @@ h3 {
   text-align: right;
 }
 
+/* Evolução Mensal Styles */
+.evolution-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.advogado-evolution {
+  border: 1px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+}
+
+.advogado-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #3498db;
+}
+
+.advogado-header h3 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.department-badge {
+  background-color: #3498db;
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.no-evolution {
+  text-align: center;
+  color: #7f8c8d;
+  padding: 1rem;
+}
+
+.evolution-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.chart-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 1rem;
+  min-height: 200px;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #ecf0f1;
+}
+
+.month-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 80px;
+}
+
+.bar-container {
+  width: 100%;
+  height: 150px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.bar {
+  width: 100%;
+  background: linear-gradient(to top, #3498db, #2980b9);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.bar:hover {
+  background: linear-gradient(to top, #e74c3c, #c0392b);
+  transform: scaleY(1.05);
+}
+
+.month-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #2c3e50;
+  text-align: center;
+}
+
+.month-hours {
+  font-size: 0.7rem;
+  color: #27ae60;
+  font-weight: bold;
+  text-align: center;
+}
+
+.evolution-details {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid #ecf0f1;
+}
+
+.month-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.month-detail {
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #3498db;
+}
+
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.month-name {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.month-total {
+  font-weight: bold;
+  color: #27ae60;
+}
+
+.casos-list {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.casos-label {
+  font-weight: 500;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  min-width: 50px;
+}
+
+.casos {
+  color: #2c3e50;
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.no-casos {
+  color: #95a5a6;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
 /* Tabela Styles */
 .table-container {
   overflow: hidden;
@@ -537,6 +857,42 @@ h3 {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+  }
+  
+  .chart-container {
+    flex-direction: column;
+    align-items: center;
+    min-height: auto;
+    gap: 1rem;
+  }
+  
+  .month-bar {
+    flex-direction: row;
+    max-width: none;
+    width: 100%;
+    gap: 1rem;
+  }
+  
+  .bar-container {
+    width: 60px;
+    height: 100px;
+  }
+  
+  .advogado-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .month-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+  
+  .casos-list {
+    flex-direction: column;
+    gap: 0.3rem;
   }
   
   .advogados-table {
