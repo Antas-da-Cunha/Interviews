@@ -40,12 +40,74 @@ interface EvolucaoMensal {
   maxMinutos?: number
 }
 
+interface HorasPorDepartamento {
+  departamento: string
+  totalMinutos: number
+  totalHoras: string
+  percentual: number
+  quantidade: number
+}
+
 const advogados = ref<Advogado[]>([])
 const topAdvogados = ref<TopAdvogado[]>([])
+const horasPorDepartamento = ref<HorasPorDepartamento[]>([])
 const loading = ref(true)
 const loadingTop = ref(true)
+const loadingDepartamentos = ref(true)
 const error = ref<string | null>(null)
 const errorTop = ref<string | null>(null)
+const errorDepartamentos = ref<string | null>(null)
+
+const fetchHorasPorDepartamento = async () => {
+  try {
+    loadingDepartamentos.value = true
+    errorDepartamentos.value = null
+    const response = await fetch('http://localhost:5065/api/horas')
+    
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`)
+    }
+    
+    const horas: Hora[] = await response.json()
+    
+    // Agrupar horas por departamento
+    const departamentosMap = new Map<string, { minutos: number; quantidade: number }>()
+    
+    horas.forEach(hora => {
+      const dept = hora.departamento || 'Sem Departamento'
+      const minutos = hora.minutos_Registados || 0
+      
+      if (!departamentosMap.has(dept)) {
+        departamentosMap.set(dept, { minutos: 0, quantidade: 0 })
+      }
+      
+      const deptData = departamentosMap.get(dept)!
+      deptData.minutos += minutos
+      deptData.quantidade += 1
+    })
+    
+    // Calcular totais e percentuais
+    const totalMinutos = Array.from(departamentosMap.values()).reduce((sum, dept) => sum + dept.minutos, 0)
+    
+    const resultado = Array.from(departamentosMap.entries())
+      .map(([departamento, dados]) => ({
+        departamento,
+        totalMinutos: dados.minutos,
+        totalHoras: formatHoras(dados.minutos),
+        percentual: totalMinutos > 0 ? (dados.minutos / totalMinutos) * 100 : 0,
+        quantidade: dados.quantidade
+      }))
+      .sort((a, b) => b.totalMinutos - a.totalMinutos)
+    
+    horasPorDepartamento.value = resultado
+    
+  } catch (err) {
+    errorDepartamentos.value = err instanceof Error ? err.message : 'Erro ao carregar horas por departamento'
+    console.error('Erro ao buscar horas por departamento:', err)
+  } finally {
+    loadingDepartamentos.value = false
+  }
+}
 
 const fetchAdvogados = async () => {
   try {
@@ -199,9 +261,26 @@ const getPosicaoClass = (posicao: number) => {
   }
 }
 
+const getCoresDepartamento = (index: number) => {
+  const cores = [
+    '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+    '#1abc9c', '#e67e22', '#34495e', '#95a5a6', '#d35400'
+  ]
+  return cores[index % cores.length]
+}
+
+const getPieOffset = (index: number) => {
+  let offset = 0
+  for (let i = 0; i < index; i++) {
+    offset += horasPorDepartamento.value[i].percentual * 3.6
+  }
+  return offset
+}
+
 onMounted(() => {
   fetchAdvogados()
   fetchTopAdvogados()
+  fetchHorasPorDepartamento()
 })
 </script>
 
@@ -270,6 +349,89 @@ onMounted(() => {
               <span class="name">{{ advogado.nome }} {{ advogado.sobrenome }}</span>
               <span class="department">{{ advogado.departamento }}</span>
               <span class="hours">{{ formatHoras(advogado.totalMinutos) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Horas por Departamento -->
+    <div class="departments-section">
+      <h2>🏢 Horas por Departamento</h2>
+      
+      <div v-if="loadingDepartamentos" class="loading">
+        <div class="spinner"></div>
+        <p>Carregando horas por departamento...</p>
+      </div>
+      
+      <div v-else-if="errorDepartamentos" class="error">
+        <p>Erro: {{ errorDepartamentos }}</p>
+        <button @click="fetchHorasPorDepartamento" class="retry-btn">Tentar novamente</button>
+      </div>
+      
+      <div v-else-if="horasPorDepartamento.length === 0" class="empty">
+        <p>Nenhum departamento encontrado.</p>
+      </div>
+      
+      <div v-else class="departments-container">
+        <!-- Gráfico de Pizza -->
+        <div class="chart-section">
+          <h3>Distribuição de Horas</h3>
+          <div class="pie-chart">
+            <svg viewBox="0 0 200 200" class="pie-svg">
+              <defs>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.3)"/>
+                </filter>
+              </defs>
+              <g transform="translate(100, 100)">
+                <circle 
+                  v-for="(dept, index) in horasPorDepartamento" 
+                  :key="`pie-${dept.departamento}`"
+                  :style="{
+                    fill: getCoresDepartamento(index),
+                    stroke: 'white',
+                    strokeWidth: '2',
+                    filter: 'url(#shadow)'
+                  }"
+                  :r="80"
+                  :stroke-dasharray="`${dept.percentual * 3.6} ${360 - dept.percentual * 3.6}`"
+                  :stroke-dashoffset="getPieOffset(index)"
+                  class="pie-segment"
+                />
+              </g>
+            </svg>
+          </div>
+        </div>
+        
+        <!-- Lista de Departamentos -->
+        <div class="departments-list">
+          <h3>Detalhes por Departamento</h3>
+          <div class="departments-grid">
+            <div 
+              v-for="(dept, index) in horasPorDepartamento" 
+              :key="`dept-${dept.departamento}`"
+              class="department-card"
+              :style="{ borderLeftColor: getCoresDepartamento(index) }"
+            >
+              <div class="department-header">
+                <div class="department-color" :style="{ backgroundColor: getCoresDepartamento(index) }"></div>
+                <h4>{{ dept.departamento }}</h4>
+              </div>
+              <div class="department-stats">
+                <div class="stat">
+                  <span class="stat-label">Total Horas:</span>
+                  <span class="stat-value">{{ dept.totalHoras }}</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Percentual:</span>
+                  <span class="stat-value">{{ dept.percentual.toFixed(1) }}%</span>
+                </div>
+                <div class="stat">
+                  <span class="stat-label">Registros:</span>
+                  <span class="stat-value">{{ dept.quantidade }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -434,6 +596,14 @@ h4 {
 }
 
 .podium-section {
+  margin-bottom: 3rem;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+}
+
+.departments-section {
   margin-bottom: 3rem;
   background-color: white;
   border-radius: 12px;
@@ -641,6 +811,106 @@ h4 {
   text-align: right;
 }
 
+/* Departamentos Styles */
+.departments-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.chart-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pie-chart {
+  width: 200px;
+  height: 200px;
+  position: relative;
+}
+
+.pie-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pie-segment {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.pie-segment:hover {
+  transform: scale(1.05);
+}
+
+.departments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.departments-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.department-card {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid;
+  transition: transform 0.3s ease;
+}
+
+.department-card:hover {
+  transform: translateX(5px);
+}
+
+.department-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.department-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.department-header h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.department-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-label {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
 /* Evolução Mensal Styles */
 .evolution-container {
   display: flex;
@@ -846,6 +1116,11 @@ h4 {
 @media (max-width: 768px) {
   .advogados-container {
     padding: 1rem;
+  }
+  
+  .departments-container {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
   
   .podium {
