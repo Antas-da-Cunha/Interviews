@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
+interface Hora {
+  id: number
+  caso: string
+  iD_Advogado: number
+  minutos_Registados: number
+  departamento: string
+  data: string
+}
+
 interface Advogado {
   id: number
   nome: string
@@ -10,6 +19,7 @@ interface Advogado {
   escalao: string
   cidade: string
   aniversario: string
+  totalHoras?: string
 }
 
 interface TopAdvogado {
@@ -39,6 +49,24 @@ const fetchAdvogados = async () => {
     
     const data = await response.json()
     advogados.value = data
+    
+    // Buscar horas para cada advogado
+    await Promise.all(advogados.value.map(async (advogado) => {
+      try {
+        const horasResponse = await fetch(`http://localhost:5065/api/horas/advogado/${advogado.id}`)
+        if (horasResponse.ok) {
+          const horas: Hora[] = await horasResponse.json()
+          const totalMinutos = horas.reduce((sum, hora) => sum + (hora.minutos_Registados || 0), 0)
+          advogado.totalHoras = formatHoras(totalMinutos)
+        } else {
+          advogado.totalHoras = '0h 0min'
+        }
+      } catch (err) {
+        advogado.totalHoras = '0h 0min'
+        console.error(`Erro ao buscar horas do advogado ${advogado.id}:`, err)
+      }
+    }))
+    
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Erro ao carregar advogados'
     console.error('Erro ao buscar advogados:', err)
@@ -178,7 +206,7 @@ onMounted(() => {
       
       <div v-if="loading" class="loading">
         <div class="spinner"></div>
-        <p>Carregando advogados...</p>
+        <p>Carregando advogados e horas...</p>
       </div>
       
       <div v-else-if="error" class="error">
@@ -202,6 +230,7 @@ onMounted(() => {
               <th>Escalão</th>
               <th>Cidade</th>
               <th>Aniversário</th>
+              <th>Total Horas</th>
             </tr>
           </thead>
           <tbody>
@@ -214,6 +243,7 @@ onMounted(() => {
               <td>{{ advogado.escalao }}</td>
               <td>{{ advogado.cidade }}</td>
               <td>{{ formatDate(advogado.aniversario) }}</td>
+              <td class="hours-cell">{{ advogado.totalHoras || '0h 0min' }}</td>
             </tr>
           </tbody>
         </table>
@@ -474,6 +504,12 @@ h3 {
 
 .advogado-row:hover {
   background-color: #f8f9fa;
+}
+
+.hours-cell {
+  font-weight: bold;
+  color: #27ae60;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
