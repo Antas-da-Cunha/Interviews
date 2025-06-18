@@ -277,6 +277,31 @@ const getPieOffset = (index: number) => {
   return offset
 }
 
+const createPieSlice = (percentage: number, startAngle: number, radius: number = 80) => {
+  const angle = (percentage / 100) * 360
+  const endAngle = startAngle + angle
+  
+  const startAngleRad = (startAngle * Math.PI) / 180
+  const endAngleRad = (endAngle * Math.PI) / 180
+  
+  const x1 = radius * Math.cos(startAngleRad)
+  const y1 = radius * Math.sin(startAngleRad)
+  const x2 = radius * Math.cos(endAngleRad)
+  const y2 = radius * Math.sin(endAngleRad)
+  
+  const largeArcFlag = angle > 180 ? 1 : 0
+  
+  return `M 0 0 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`
+}
+
+const getPieSliceAngle = (index: number) => {
+  let angle = 0
+  for (let i = 0; i < index; i++) {
+    angle += horasPorDepartamento.value[i].percentual * 3.6
+  }
+  return angle
+}
+
 onMounted(() => {
   fetchAdvogados()
   fetchTopAdvogados()
@@ -385,18 +410,16 @@ onMounted(() => {
                 </filter>
               </defs>
               <g transform="translate(100, 100)">
-                <circle 
+                <path 
                   v-for="(dept, index) in horasPorDepartamento" 
                   :key="`pie-${dept.departamento}`"
+                  :d="createPieSlice(dept.percentual, getPieSliceAngle(index))"
                   :style="{
                     fill: getCoresDepartamento(index),
                     stroke: 'white',
                     strokeWidth: '2',
                     filter: 'url(#shadow)'
                   }"
-                  :r="80"
-                  :stroke-dasharray="`${dept.percentual * 3.6} ${360 - dept.percentual * 3.6}`"
-                  :stroke-dashoffset="getPieOffset(index)"
                   class="pie-segment"
                 />
               </g>
