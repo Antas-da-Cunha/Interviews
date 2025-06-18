@@ -21,6 +21,7 @@ interface Advogado {
   aniversario: string
   totalHoras?: string
   evolucaoMensal?: EvolucaoMensal[]
+  isExpanded?: boolean
 }
 
 interface TopAdvogado {
@@ -302,6 +303,13 @@ const getPieSliceAngle = (index: number) => {
   return angle
 }
 
+const toggleAdvogadoExpansion = (advogadoId: number) => {
+  const advogado = advogados.value.find(a => a.id === advogadoId)
+  if (advogado) {
+    advogado.isExpanded = !advogado.isExpanded
+  }
+}
+
 onMounted(() => {
   fetchAdvogados()
   fetchTopAdvogados()
@@ -482,15 +490,42 @@ onMounted(() => {
           class="advogado-evolution"
         >
           <div class="advogado-header">
-            <h3>{{ advogado.nome }} {{ advogado.sobrenome }}</h3>
-            <span class="department-badge">{{ advogado.departamento }}</span>
+            <div class="advogado-info">
+              <h3>{{ advogado.nome }} {{ advogado.sobrenome }}</h3>
+              <span class="department-badge">{{ advogado.departamento }}</span>
+            </div>
+            <button 
+              @click="toggleAdvogadoExpansion(advogado.id)"
+              class="expand-btn"
+              :class="{ 'expanded': advogado.isExpanded }"
+            >
+              <span v-if="!advogado.isExpanded">📊 Expandir Detalhes</span>
+              <span v-else>📈 Recolher Detalhes</span>
+            </button>
           </div>
           
           <div v-if="!advogado.evolucaoMensal || advogado.evolucaoMensal.length === 0" class="no-evolution">
             <p>Nenhuma evolução mensal disponível.</p>
           </div>
           
-          <div v-else class="evolution-chart">
+          <div v-else class="evolution-summary">
+            <div class="summary-stats">
+              <div class="stat-card">
+                <span class="stat-label">Total de Meses:</span>
+                <span class="stat-value">{{ advogado.evolucaoMensal.length }}</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Maior Mês:</span>
+                <span class="stat-value">{{ advogado.evolucaoMensal.reduce((max, mes) => mes.totalMinutos > max.totalMinutos ? mes : max).mes }}</span>
+              </div>
+              <div class="stat-card">
+                <span class="stat-label">Total Geral:</span>
+                <span class="stat-value">{{ advogado.totalHoras }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="advogado.isExpanded && advogado.evolucaoMensal && advogado.evolucaoMensal.length > 0" class="evolution-chart">
             <div class="chart-container">
               <div 
                 v-for="(mes, index) in advogado.evolucaoMensal" 
@@ -957,6 +992,12 @@ h4 {
   border-bottom: 2px solid #3498db;
 }
 
+.advogado-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .advogado-header h3 {
   margin: 0;
   color: #2c3e50;
@@ -971,10 +1012,67 @@ h4 {
   font-weight: 500;
 }
 
+.expand-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.expand-btn:hover {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+.expand-btn.expanded {
+  background-color: #e74c3c;
+}
+
+.expand-btn.expanded:hover {
+  background-color: #c0392b;
+}
+
 .no-evolution {
   text-align: center;
   color: #7f8c8d;
   padding: 1rem;
+}
+
+.evolution-summary {
+  text-align: center;
+  padding: 1rem;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.stat-label {
+  display: block;
+  font-weight: 500;
+  color: #7f8c8d;
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-weight: bold;
+  color: #2c3e50;
 }
 
 .evolution-chart {
