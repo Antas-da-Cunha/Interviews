@@ -37,6 +37,7 @@ interface EvolucaoMensal {
   totalMinutos: number
   totalHoras: string
   casos: string[]
+  maxMinutos?: number
 }
 
 const advogados = ref<Advogado[]>([])
@@ -107,7 +108,7 @@ const calcularEvolucaoMensal = (horas: Hora[]): EvolucaoMensal[] => {
     }
   })
   
-  return Array.from(evolucaoPorMes.entries())
+  const evolucao = Array.from(evolucaoPorMes.entries())
     .map(([mesAno, dados]) => {
       const [ano, mes] = mesAno.split('-')
       return {
@@ -122,6 +123,16 @@ const calcularEvolucaoMensal = (horas: Hora[]): EvolucaoMensal[] => {
       if (a.ano !== b.ano) return a.ano - b.ano
       return getNumeroMes(a.mes) - getNumeroMes(b.mes)
     })
+  
+  // Calcular o máximo de minutos para escala dinâmica
+  const maxMinutos = Math.max(...evolucao.map(m => m.totalMinutos), 1)
+  
+  // Adicionar a escala máxima a cada mês
+  evolucao.forEach(mes => {
+    mes.maxMinutos = maxMinutos
+  })
+  
+  return evolucao
 }
 
 const getNomeMes = (numero: number): string => {
@@ -304,7 +315,7 @@ onMounted(() => {
                 <div class="bar-container">
                   <div 
                     class="bar" 
-                    :style="{ height: `${Math.min((mes.totalMinutos / 600) * 100, 100)}%` }"
+                    :style="{ height: `${Math.min((mes.totalMinutos / mes.maxMinutos) * 100, 100)}%` }"
                     :title="`${mes.mes} ${mes.ano}: ${mes.totalHoras}`"
                   ></div>
                 </div>
